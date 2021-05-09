@@ -8,7 +8,7 @@ async function main () {
     console.log(`Account balance: ${balance.toString()}`);
 
     const Staking = await ethers.getContractFactory('Staking');
-    const staking = await Staking.deploy( deployer.address, 1000000, 'Staking Contract Token', 'SCT', 18, 100000000);
+    const staking = await Staking.deploy( deployer.address, 'Staking Contract Token', 'SCT', 18, 100000000);
     // console.log(staking, 'staking issue');
     console.log(`Staking address: ${staking.address}`);
 

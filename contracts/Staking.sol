@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.6.6;
-
+import 'hardhat/console.sol';
 import "./ERC20.sol";
 import "./SafeMath.sol";
 import "./Ownable.sol";
@@ -26,24 +26,26 @@ struct LockedStake {
 }
 
 contract Staking is ERC20, Ownable {
-    mapping(address => User) internal users;
-    mapping(address => LockedStake) internal lockedStakes;
+    mapping(address => User) public users;
+    mapping(address => LockedStake) public lockedStakes;
+    mapping(address => uint256) public balances;
     uint _totalStakes;
     uint APY = 50;
-    uint WAIT_PERIOD = 2 days;
+    uint WAIT_PERIOD = 1 minutes;
 /*
 initalizing amount of token supply in circulation
 passing constructor value for erc 20 contract
 */
     constructor(
         address _owner,
-        uint _supply,
         string memory name,
         string memory symbol,
         uint8 decimals,
         uint totalSupply
     ) public ERC20(name, symbol, decimals, totalSupply) {
-        _mint(_owner, _supply);
+        _mint(_owner, totalSupply);
+        _owner = msg.sender;  
+        balances[msg.sender] = totalSupply;
     }
 
     // event createStakeEvent(User user);
@@ -53,8 +55,8 @@ updats object if one exists already.
 tokens are burnt to reduce total supply and create scarcity
  */
     function createStake(uint stake) public {
-        _burn(msg.sender, stake);  
-        _totalStakes.add(stake);
+        transfer(msg.sender, stake);  
+        _totalStakes = _totalStakes.add(stake);
        if(!isStakeHolder(msg.sender)){
            User memory user =
             User({
@@ -65,10 +67,12 @@ tokens are burnt to reduce total supply and create scarcity
                 isHolder: true
             });
             users[msg.sender] = user;
+            balances[msg.sender] = stake;
             // emit createStakeEvent(user);
        }else {
            User storage oldUser = users[msg.sender];
            oldUser.stake = oldUser.stake.add(stake);
+           balances[msg.sender] = oldUser.stake;
        }     
     }
 /* 
@@ -76,12 +80,11 @@ users can initate process to withdraw iinital investment without rewards  here
 the funds will be locked for a period of time before finally being released
 by calling RemoveStake ().
 If user tries to unstake more of their inital investements, the timer will be reset
-once a user has 0 stakes.
 */
     function InitiateRemoveStake(uint stake) public {
-        require(isStakeHolder(msg.sender) == true, 'Not a stakeholder');    
-        require(address(this).balance >= stake, 'Not enough tokens');
-   
+        require(isStakeHolder(msg.sender) == true, 'Not a stakeholder'); 
+        require(balances[msg.sender] >= stake, 'Not enough tokens');
+        require(stake > 0, 'stake too small');
         LockedStake storage lockedStake = lockedStakes[msg.sender];
         if(!lockedStake.locked) {
             LockedStake memory lockedStake = 
@@ -97,7 +100,7 @@ once a user has 0 stakes.
         }        
         
         User storage user = users[msg.sender]; 
-        user.stake = user.stake.sub(stake);
+        user.stake = user.stake.sub(stake);        
     }
 /* 
 locked stakes are transfered to users address
@@ -106,23 +109,32 @@ total stakes is also reduced
     function RemoveStake () public {
         LockedStake storage lockedStake = lockedStakes[msg.sender];
         require(lockedStake.locked == true, 'No stakes locked');
-        require(lockedStake.dateLocked > WAIT_PERIOD, 'waiting period has not been exceeded');
+        require(lockedStake.dateLocked + WAIT_PERIOD > now , 'waiting period has not been exceeded');
         uint amountUnstaked = lockedStake.stake;
+        console.log('unstaked', amountUnstaked);
         transfer(msg.sender, amountUnstaked);
-        _totalStakes.sub(amountUnstaked);
+        balances[msg.sender] = balances[msg.sender].add(amountUnstaked);
+        console.log('total stakes', _totalStakes);
+        _totalStakes = _totalStakes.sub(amountUnstaked);
         lockedStake.stake = lockedStake.stake.sub(amountUnstaked);
         lockedStake.locked = false;
         _mint(msg.sender, amountUnstaked);
+        console.log('current balance', balances[msg.sender]);
     }
 
 //returns current stake of a user
-    function stakeOf(address stakeHolder) public view returns (uint) {
-        return users[stakeHolder].stake;
+    function stakeOf() public view returns (uint) {
+        return users[msg.sender].stake;
     }
 
 //returns total number of stakes in the contract
     function totalStakes() public view returns (uint) {
         return _totalStakes;
+    }
+
+//returns users current balance
+    function currentBalance() public view returns (uint) {
+        return balances[msg.sender];
     }
 
 //check if a user is a holder
@@ -135,9 +147,9 @@ total stakes is also reduced
     }
 
 //returns how much rewards a user has made
-    function rewardOf(address stakeHolder) external view returns (uint) {        
+    function rewardOf() external view returns (uint) {        
         require(isStakeHolder(msg.sender) == true, 'Not a stakeholder');
-        return users[stakeHolder].reward;
+        return users[msg.sender].reward;
     }
 
 /*
@@ -159,7 +171,7 @@ is then added to users total reward
     function calculateRewardBasedOnApy(uint apy) public {
         require(isStakeHolder(msg.sender) == true, 'Not a stakeholder');
         require(lockedStakes[msg.sender].locked == true, 'Stakes locked, cannot earn rewards');
-        uint totalUserStake = stakeOf(msg.sender);
+        uint totalUserStake = stakeOf();
         require(totalUserStake < 0, 'stake is too low');
         uint apyPercentage = apy.div(100);
         uint reward = totalUserStake.mul(apyPercentage);
