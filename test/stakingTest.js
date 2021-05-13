@@ -6,7 +6,6 @@ const waitTime = (minutes) => new Promise(resolve => setTimeout(resolve, minutes
 
 describe('Staking contract', () => {
     let Stake, stake, owner, user, addr2;
-    // const tokens = BigNumber(10).pow(18).multipliedBy(1000);
     
     beforeEach(async () => {
         Stake = await ethers.getContractFactory('Staking');
@@ -50,7 +49,10 @@ describe('Staking contract', () => {
             expect(await stake.currentBalance()).to.be.equal(7);
         });
 
-
-
+        it('should calculate reward', async () => {
+            await stake.calculateRewardBasedOnApy( web3.utils.toWei('50'));
+            let amount = await stake.rewardOf();
+            expect( amount).to.be.equal(6849315068493150);
+        });
     });
 });

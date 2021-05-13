@@ -94,6 +94,7 @@ If user tries to unstake more of their inital investements, the timer will be re
                 locked: true
             });
             lockedStakes[msg.sender] = lockedStake;
+            console.log('locked state',lockedStakes[msg.sender].locked);
         } else {
             lockedStake.stake = lockedStake.stake.add(stake);
             lockedStake.dateLocked = lockedStake.dateLocked = now;
@@ -120,6 +121,28 @@ total stakes is also reduced
         lockedStake.locked = false;
         _mint(msg.sender, amountUnstaked);
         console.log('current balance', balances[msg.sender]);
+    }
+
+    
+/* 
+function is called from an oracle once a day with a certain apy.
+we then calculate ROI for that day based on users stake and current apy, that value 
+is then added to users total reward
+*/
+    function calculateRewardBasedOnApy(uint apy) public {
+        require(isStakeHolder(msg.sender) == true, 'Not a stakeholder');
+        require(lockedStakes[msg.sender].locked == false, 'Stakes locked, cannot earn rewards');
+        uint totalUserStake = stakeOf();
+        console.log('totalUserStake', totalUserStake);
+        require(totalUserStake > 0, 'stake is too low');
+        uint apyPercentage = apy.div(100);
+        console.log('apyPercentage', apyPercentage);
+        uint reward = totalUserStake.mul(apyPercentage);
+        uint roi = reward.div(365);
+        User storage user = users[msg.sender];
+        user.reward = user.reward.add(roi);
+        console.log('user reward', user.reward);
+        console.log('roi reward', roi);
     }
 
 //returns current stake of a user
@@ -162,21 +185,5 @@ once reward amount is available, it is transfered to users address
         require(user.reward >= amount, 'Not enough tokens');
         transfer(msg.sender, amount);
         user.reward = user.reward.sub(amount);
-    }
-/* 
-function is called from an oracle once a day with a certain apy.
-we then calculate ROI for that day based on users stake and current apy, that value 
-is then added to users total reward
-*/
-    function calculateRewardBasedOnApy(uint apy) public {
-        require(isStakeHolder(msg.sender) == true, 'Not a stakeholder');
-        require(lockedStakes[msg.sender].locked == true, 'Stakes locked, cannot earn rewards');
-        uint totalUserStake = stakeOf();
-        require(totalUserStake < 0, 'stake is too low');
-        uint apyPercentage = apy.div(100);
-        uint reward = totalUserStake.mul(apyPercentage);
-        uint roi = reward / 365;
-        User storage user = users[msg.sender];
-        user.reward.add(roi);
     }
 }
