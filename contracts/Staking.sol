@@ -55,7 +55,6 @@ updats object if one exists already.
 tokens are burnt to reduce total supply and create scarcity
  */
     function createStake(uint stake) public {
-        transfer(msg.sender, stake);  
         _totalStakes = _totalStakes.add(stake);
        if(!isStakeHolder(msg.sender)){
            User memory user =
@@ -74,6 +73,7 @@ tokens are burnt to reduce total supply and create scarcity
            oldUser.stake = oldUser.stake.add(stake);
            balances[msg.sender] = oldUser.stake;
        }     
+        transfer(msg.sender, stake);  
     }
 /* 
 users can initate process to withdraw iinital investment without rewards  here
@@ -113,12 +113,12 @@ total stakes is also reduced
         require(lockedStake.dateLocked + WAIT_PERIOD > now , 'waiting period has not been exceeded');
         uint amountUnstaked = lockedStake.stake;
         console.log('unstaked', amountUnstaked);
-        transfer(msg.sender, amountUnstaked);
         balances[msg.sender] = balances[msg.sender].add(amountUnstaked);
         console.log('total stakes', _totalStakes);
         _totalStakes = _totalStakes.sub(amountUnstaked);
         lockedStake.stake = lockedStake.stake.sub(amountUnstaked);
         lockedStake.locked = false;
+        transfer(msg.sender, amountUnstaked);
         _mint(msg.sender, amountUnstaked);
         console.log('current balance', balances[msg.sender]);
     }
@@ -183,7 +183,7 @@ once reward amount is available, it is transfered to users address
         require(isStakeHolder(msg.sender) == true, 'Not a stakeholder');        
         User storage user  = users[msg.sender];
         require(user.reward >= amount, 'Not enough tokens');
-        transfer(msg.sender, amount);
         user.reward = user.reward.sub(amount);
+        transfer(msg.sender, amount);
     }
 }

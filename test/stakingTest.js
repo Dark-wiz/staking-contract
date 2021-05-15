@@ -1,6 +1,6 @@
 const {expect, assert} = require('chai');
 const {ethers} = require('hardhat');
-// const BigNumber = require('bignumber.js');
+const web3 = require('web3');
 
 const waitTime = (minutes) => new Promise(resolve => setTimeout(resolve, minutes * 60 * 1000));
 
